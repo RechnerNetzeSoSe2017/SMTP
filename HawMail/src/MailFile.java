@@ -20,11 +20,6 @@ public class MailFile {
 	public static void main(String[] args) {
 		// Zuerst die anmeldedaten auslesen
 
-		// wenn OK, Socket mit server herstellen
-
-		// DATA übertragen
-
-		// quit
 		MailFile mf = new MailFile("",null);
 		
 		mf.addRecipients("patrick.hoeling@haw-hamburg.de");
@@ -72,6 +67,9 @@ public class MailFile {
 		
 	}
 
+	/**
+	 * Diese Methode stellt die Verbindung mit dem Socket des Servers her  
+	 */
 	public void senden() {
 		
 		if(!readConfig()){
@@ -80,8 +78,10 @@ public class MailFile {
 
 		
 
+		//Verbindnung zum Zielsocket
 		try {
 
+			//Wenn der angegebene Port 465 ist, dann wird ein SSLSocket benutzt, ansonsten ein Normaler Socket
 			if (portNr == 465) {
 
 				socket = SSLSocketFactory.getDefault().createSocket(hostnameZumAbsenden, portNr);
@@ -98,8 +98,11 @@ public class MailFile {
 
 			e.printStackTrace();
 		}
+		
 		//-------------
+		//Ab hier besteht eine Verbindung mit dem Serversocket 
 		try {
+			
 			connectAndAuth();
 		} catch (IOException e) {
 			try {
@@ -114,6 +117,10 @@ public class MailFile {
 
 	}
 	
+	/**
+	 * Hier findet die gesamte Kommunikation statt.
+	 * @throws IOException
+	 */
 	private void connectAndAuth() throws IOException{
 		in= new BufferedReader(new InputStreamReader(socket.getInputStream()));
 		out= new PrintWriter(socket.getOutputStream());
@@ -142,17 +149,19 @@ public class MailFile {
 			antwort=in.readLine();
 			checkResponse(antwort, "2");
 			
+			//ALLE empfänger aus der empfängerliste werden an den server übertragen
 			for(int i = 0;i < recipientList.size();i++){
 				addRecipient(recipientList.get(i));
 			}
 			
 					
-			
+			//hier werden dann die Daten übertragen
 			tmp= "DATA";
 			sendToServer(tmp);
 			antwort=in.readLine();
 			checkResponse(antwort, "3");
 			
+			//Die Empfänger werden der Mail hinzugefügt, damit man sieht das an wen die mail alles ging
 			for(int i = 0;i < recipientList.size();i++){
 				out.println("From:"+recipientList.get(i));
 			}
@@ -172,6 +181,11 @@ public class MailFile {
 		}
 		
 	}
+	/**
+	 * Sendet einen Empfänger an den Server. Es muss nur die Mailadresse angegeben werden. 
+	 * @param adress  "example@web.de"
+	 * @throws IOException
+	 */
 	private void addRecipient(String adress) throws IOException{
 		String tmp= "RCPT TO:<"+adress+">";
 		sendToServer(tmp);
@@ -179,6 +193,11 @@ public class MailFile {
 		checkResponse(antwort, "2");
 	}
 	
+	/**
+	 * Checkt ob der Rückgabecode mit 5 beginnt, was einen kritischen Fehler aussagt 
+	 * @param response
+	 * @throws IOException
+	 */
 	private void errorCheck(String response) throws IOException {
 		if(response.startsWith("5")){
 			log("S:> Fataler Fehler!");
@@ -187,6 +206,15 @@ public class MailFile {
 		}
 		
 	}
+	
+	
+	/**
+	 * Überprüft ob die übergebene Antwort vom Server mit einem übergebenen antwortcode Übereinstimmt. Wenn nicht wird geprüft ob die
+	 * Antwort einen fatalen Fehlercode enthält. Siehe {@link #errorCheck(String)}
+	 * @param input Antwort von Server
+	 * @param expected die erwartete Antwort des Servers
+	 * @throws IOException
+	 */
 	private void checkResponse(String input,String expected) throws IOException{
 		log("S:> "+input);
 		if(!input.startsWith(expected)){
@@ -200,17 +228,29 @@ public class MailFile {
 		}
 		
 	}
+	/**
+	 * Sendet den übergebnenen String an den Server
+	 * @param message
+	 */
 	private void sendToServer(String message){
 		out.println(message);
 		out.flush();
 		log("\tC:> "+message);
 	}
 
+	/**
+	 * Gibt den übergebnenen Text auf der Konsole aus
+	 * @param log
+	 */
 	private void log(String log){
 		if(consoleLog){
 			System.out.println(log);
 		}
 	}
+	
+	/**
+	 * Schliesst die Socketverbindnung
+	 */
 	public void closeConnection(){
 		try {
 			socket.close();
@@ -219,6 +259,11 @@ public class MailFile {
 			e.printStackTrace();
 		}
 	}
+	
+	/**
+	 * Kommuniziert mit dem Server und authentisiert sich mit Base64.  
+	 * @return true wenn das Authentisieren erfolgreich war
+	 */
 	private boolean authentisierenBase64Plain(){
 
 		
@@ -226,6 +271,8 @@ public class MailFile {
 		Decoder decoder = Base64.getDecoder();
 		
 
+		//warum der String mit \0 beginnen muss, bzw WAS genau das trennzeichen \0 trennt,
+		//steht in irgendeinem RFC..
 		String erg = new String(encoder.encode(("\0"+username+"\0"+password).getBytes()));
 		
 //		log("\tC:> "+erg);
