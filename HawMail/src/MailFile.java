@@ -1,317 +1,250 @@
+package mail_agent;
+
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
+import java.io.UnsupportedEncodingException;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Base64;
-import java.util.Base64.Decoder;
 import java.util.Base64.Encoder;
+import java.util.List;
+import java.util.Properties;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 
 public class MailFile {
+	private static PrintWriter out;
+	private static BufferedReader in;
+	private String fileToSendString;
+	private String host;
+	private String from;
+	private String userAndPw;
+	private String user;
+	private String pw;
+	private int port;
+	private String filename;
+	private boolean logOnConsole = false;
+	
+public MailFile() {
+	// Daten des Senders aus Konfigurationsdatei filtern
+	// ________________________________________________________________________________
+	Properties hostData = new Properties();
+
+	// Porperties mit inputStream aus KonfDatei lesen
+	// -------------------------------------------------------------------------------
+	BufferedReader reader = null;
+	List<String> properties = new ArrayList<String>();
+	// try catch fuer den fall, dass die datei nicht gefunden wird
+	try {
+		InputStream konfigurationFile = MailFile.class.getResourceAsStream("UserKonf.txt"); 
+		reader = new BufferedReader(new InputStreamReader(konfigurationFile));
+		String line;
+		// solange zeilen in der Datei gefunden werden, fuege diese dem
+		// filebody hinzu
+		while ((line = reader.readLine()) != null) {
+			properties.add(line);
+		}
+	} catch (IOException e) {
+		e.printStackTrace();
+	}
+	// -------------------------------------------------------------------------------
+
+	// If true, attempt to authenticate the user using the AUTH command.
+	// Defaults to false
+	hostData.put("mail.smtp.auth", "true");
+	// If set to true, attempt to use the javax.security.sasl package to
+	// choose
+	// an authentication mechanism for login. Defaults to false.
+	hostData.put("mail.smtp.starttls.enable", "true");
+	hostData.put("mail.smtps.from", properties.get(0));
+	hostData.put("mail.smtps.host", properties.get(3));
+	hostData.put("mail.smtps.port", properties.get(4));
+
+	//Properties in variablen binden
+	host = hostData.getProperty("mail.smtps.host");
+	from = hostData.getProperty("mail.smtps.from");
+	userAndPw = hostData.getProperty("mail.smtps.user"); 	//user und pw muessen laut RFC zusammen uebergeben werden
+	user=properties.get(1);
+	pw=properties.get(2);
+	port = Integer.parseInt(hostData.getProperty("mail.smtps.port"));
+}
 
 	public static void main(String[] args) {
-		// Zuerst die anmeldedaten auslesen
-
-		MailFile mf = new MailFile("",null);
-		
-		mf.addRecipients("patrick.hoeling@haw-hamburg.de");
-		mf.addRecipients("julian.mechow@haw-hamburg.de");
-		mf.addRecipients("christopher.wolfarth@haw-hamburg.de");
-		mf.senden();
-		mf.closeConnection();
-
-	}
-
-	private String recipient = "patrick.hoeling@haw-hamburg.de";
-	private File zuSendendeDaten;
-
-	private String absenderMailadresse;
-	private String username;
-	private String password;
-	private String hostnameZumAbsenden;
-	private int portNr = 465;
-	
-	private Socket socket;
-	private BufferedReader in;
-	private PrintWriter out;
-	
-	private boolean consoleLog = true;
-	
-	private ArrayList<String> recipientList = new ArrayList<>();
-	private ArrayList<File> attachments = new ArrayList<File>();
-
-	public MailFile(String email, File file) {
-
-		// patternmatcher fuer emailadressen
-		recipient = email;
-		zuSendendeDaten = file;
-
-	}
-
-	private boolean readConfig() {
-		// hier wird die config ausgelesen
-		
-		absenderMailadresse="rnsose2017@informatik.haw-hamburg.de";
-		username="rnsose2017";
-		password="Aufgabe1";
-		hostnameZumAbsenden="mailgate.informatik.haw-hamburg.de";
-		portNr = 465;
-
-		return true;
-		
-	}
-
-	/**
-	 * Diese Methode stellt die Verbindung mit dem Socket des Servers her  
-	 */
-	public void senden() {
-		
-		if(!readConfig()){
-			return;
-		}
-
-		
-
-		//Verbindnung zum Zielsocket
+		//String toAdress = args[0];
+		//String filepath = args[1];
+		MailFile mf = new MailFile(); 
+		File fileToSend = new File("C:\\Users\\Chris\\Desktop\\File.txt");
+		mf.filename = fileToSend.getName();
+		Encoder base64Encoder = Base64.getEncoder();	
+		byte[] fileAsByteArray = null;
 		try {
-
-			//Wenn der angegebene Port 465 ist, dann wird ein SSLSocket benutzt, ansonsten ein Normaler Socket
-			if (portNr == 465) {
-
-				socket = SSLSocketFactory.getDefault().createSocket(hostnameZumAbsenden, portNr);
-
-			} else if (portNr == 25) {
-
-				socket = new Socket(hostnameZumAbsenden, portNr);
-
-			}
-		} catch (UnknownHostException e) {
-
-			e.printStackTrace();
+			fileAsByteArray = Files.readAllBytes(fileToSend.toPath());
 		} catch (IOException e) {
-
+			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		
-		//-------------
-		//Ab hier besteht eine Verbindung mit dem Serversocket 
-		try {
-			
-			connectAndAuth();
-		} catch (IOException e) {
-			try {
-				log("C:> Beende Socketverbindung!");
-				socket.close();
-			} catch (IOException e1) {
-				
-				e1.printStackTrace();
-			}
-			e.printStackTrace();
-		}
+		mf.fileToSendString = new String (base64Encoder.encode(fileAsByteArray)); 
+		String toAddress = "christopher.wolfarth@haw-hamburg.de";
+		mf.checkMail(toAddress);
+//		String body = loadBody(filepath);
+		String body = "sned";
+		mf.sendMail(toAddress, body);
+	}
 
-	}
-	
-	/**
-	 * Hier findet die gesamte Kommunikation statt.
-	 * @throws IOException
-	 */
-	private void connectAndAuth() throws IOException{
-		in= new BufferedReader(new InputStreamReader(socket.getInputStream()));
-		out= new PrintWriter(socket.getOutputStream());
-		
-		//Server stellt sich vor und begrueßt
-		String response = in.readLine();
-		log("S:> "+response);
-		errorCheck(response);
-		
-		//Hello nachrich AN den Server
-		String tmp = "EHLO its.me.mario";
-		sendToServer(tmp);
-		checkResponse(in.readLine(), "2");
-		
-		//Die AUTH Methode wird gewählt un dem server mitgeteilt
-		tmp = "AUTH PLAIN";
-		sendToServer(tmp);
-		
-		String antwort = in.readLine();
-		checkResponse(antwort, "3");
-		
-		//wenn das AUTH PLAIN erfolgreich war, kann die mail übertragen werden
-		if(authentisierenBase64Plain()){
-			tmp="MAIL FROM:<"+absenderMailadresse+">";
-			sendToServer(tmp);
-			antwort=in.readLine();
-			checkResponse(antwort, "2");
-			
-			//ALLE empfänger aus der empfängerliste werden an den server übertragen
-			for(int i = 0;i < recipientList.size();i++){
-				addRecipient(recipientList.get(i));
-			}
-			
-					
-			//hier werden dann die Daten übertragen
-			tmp= "DATA";
-			sendToServer(tmp);
-			antwort=in.readLine();
-			checkResponse(antwort, "3");
-			
-			//Die Empfänger werden der Mail hinzugefügt, damit man sieht das an wen die mail alles ging
-			for(int i = 0;i < recipientList.size();i++){
-				out.println("To:"+recipientList.get(i));
-			}
-			
-			out.println("From:<"+absenderMailadresse+">");
-//			out.println("To:<"+"alle aus unserer Praktikumsgruppe"+">");
-			out.println("Subject: TestEmail");
-			out.println("\n");
-			out.println("Hallo Welt, Diggah!");
-			out.println(".");
-			out.flush();
-			
-			antwort=in.readLine();
-			checkResponse(antwort, "2");
-			sendToServer("QUIT");
-			
+	public void send(String s) throws IOException {
+		if (s != null) {
+			out.println(s);
+			log("\tC: " + s);
 		}
-		
-	}
-	/**
-	 * Sendet einen Empfänger an den Server. Es muss nur die Mailadresse angegeben werden. 
-	 * @param adress  "example@web.de"
-	 * @throws IOException
-	 */
-	private void addRecipient(String adress) throws IOException{
-		String tmp= "RCPT TO:<"+adress+">";
-		sendToServer(tmp);
-		String antwort=in.readLine();
-		checkResponse(antwort, "2");
-	}
-	
-	/**
-	 * Checkt ob der Rückgabecode mit 5 beginnt, was einen kritischen Fehler aussagt 
-	 * @param response
-	 * @throws IOException
-	 */
-	private void errorCheck(String response) throws IOException {
-		if(response.startsWith("5")){
-			log("S:> Fataler Fehler!");
-			
-			throw new IOException(response);
-		}
-		
-	}
-	
-	
-	/**
-	 * Überprüft ob die übergebene Antwort vom Server mit einem übergebenen antwortcode Übereinstimmt. Wenn nicht wird geprüft ob die
-	 * Antwort einen fatalen Fehlercode enthält. Siehe {@link #errorCheck(String)}
-	 * @param input Antwort von Server
-	 * @param expected die erwartete Antwort des Servers
-	 * @throws IOException
-	 */
-	private void checkResponse(String input,String expected) throws IOException{
-		log("S:> "+input);
-		if(!input.startsWith(expected)){
-			try {
-				errorCheck(input);
-			} catch (Exception e) {
-				// TODO: handle exception
-			}
-		}else if(input.charAt(3) == '-'){
-			checkResponse(in.readLine(), expected);
-		}
-		
-	}
-	/**
-	 * Sendet den übergebnenen String an den Server
-	 * @param message
-	 */
-	private void sendToServer(String message){
-		out.println(message);
 		out.flush();
-		log("\tC:> "+message);
 	}
 
-	/**
-	 * Gibt den übergebnenen Text auf der Konsole aus
-	 * @param log
-	 */
-	private void log(String log){
-		if(consoleLog){
+	public void sendMail(String toAddress, String body) {
+
+		// ________________________________________________________________________________
+		// SEND MAIL		
+		// Server Socket deklarieren
+		Socket sslSocket = null;
+		try {
+			sslSocket = SSLSocketFactory.getDefault().createSocket(host, port);
+			out = new PrintWriter(sslSocket.getOutputStream());
+			in = new BufferedReader(new InputStreamReader(sslSocket.getInputStream()));
+			checkResponse(in.readLine());
+			send("EHLO " + "P0rn0R4ll3"); //hier muss noch die IP des absenders rein
+			checkResponse(in.readLine());
+			if (auth()) {
+				send("MAIL FROM: " + from);
+				checkResponse(in.readLine());
+				send("RCPT TO: " + "<" + toAddress + ">");
+				checkResponse(in.readLine());
+				send("DATA");						
+				checkResponse(in.readLine());		// hier kommen die header informationen fuer die mail
+				send("From: <"+ from + ">");		// absender
+				send("To: <" + toAddress + ">");	// empfaenger
+				send("Subject: RNP1 TestMail");	// betreff
+				send("MIME-Version: 1.0");
+				send("Content-Type: multipart/mixed; boundary=\"Filetransfer\""); // es wird file gesendet
+				send("\n");		
+				send("--Filetransfer");
+				send("Content-Type: text/plain"); //es kommt wieder text
+				send("\n");
+				send(body);// eine Leerzeile trennt den header vom body
+				send("--Filetransfer");
+				send("Content-Type: application/octet-stream");
+				send("Content-Disposition: attachment; filename=" + filename);
+				send("Content-Transfer-Encoding: base64");
+				send("\n");	
+				send(fileToSendString); //TODO FILE AS BASE64 STRING
+				send("--Filetransfer--");				
+				send(".");
+				checkResponse(in.readLine());
+				send("quit");
+			}
+			out.close();
+			in.close();
+		} catch (UnknownHostException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		} finally {										// sslSocket muss auf jeden Fall geschlossen werden, deswegen finally
+			try {										// das kann jedoch auch noch fehlschlagen deshalb noch ein try-catch
+				sslSocket.close();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+
+	}
+	
+	
+	private boolean auth() throws IOException {
+		send("AUTH PLAIN");
+		checkResponse(in.readLine());
+		Encoder base64Encoder = Base64.getEncoder();	
+		String userAndPwEncoded = new String(base64Encoder.encode(("\0"+user+"\0"+pw).getBytes())); // user und passwort muessen in base64 encoded werden
+		send(userAndPwEncoded);
+		String r = in.readLine();
+		checkResponse(r); 
+		if (r.startsWith("2")) {
+			return true;
+		}
+		return false;
+	}
+
+	private void checkResponse(String response) throws IOException {
+		log("S: " + response);						// schreib in den log 
+		if (response.startsWith("5")) {				// error codes starten mit 5 (smtp reply codes)
+			throw new IOException();
+		} else if (response.charAt(3) == '-') {		// wenn das vierte Zeichen ein '-' ist,
+			checkResponse(in.readLine()); 			// und schau ob noch mehr kommt
+		}											// abfrage auf "2" ist ueberfluessig, da nur der abschluss der nachricht mÃ¶glich ist
+	}
+	
+	private void log(String log) {
+		if(logOnConsole){
 			System.out.println(log);
 		}
-	}
-	
-	/**
-	 * Schliesst die Socketverbindnung
-	 */
-	public void closeConnection(){
-		try {
-			socket.close();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-	}
-	
-	/**
-	 * Kommuniziert mit dem Server und authentisiert sich mit Base64.  
-	 * @return true wenn das Authentisieren erfolgreich war
-	 */
-	private boolean authentisierenBase64Plain(){
+			
+	    FileWriter fw=null;
+	    
+	    try {
+	    	fw = new FileWriter("log.txt",true);
+	    	
+	    	BufferedWriter bw = new BufferedWriter(fw);
 
-		
-		Encoder encoder = Base64.getEncoder();
-		Decoder decoder = Base64.getDecoder();
-		
+	    	bw.append(log+"\n");
 
-		//warum der String mit \0 beginnen muss, bzw WAS genau das trennzeichen \0 trennt,
-		//steht in irgendeinem RFC..
-		String erg = new String(encoder.encode(("\0"+username+"\0"+password).getBytes()));
-		
-//		log("\tC:> "+erg);
-		sendToServer(erg);
-		
-		erg = "5";
-		try {
-			erg= in.readLine();
-			checkResponse(erg, "2");
+	    	
+			bw.close();
+			fw.close();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
+			
 			e.printStackTrace();
 		}
 		
-		return erg.startsWith("2");
-		
-	}
-	private void sendAttachment(File file){
-		//mimetype machen..
-		//bytearray der files geben lassen und die dann in base 64 codieren
-	}
-	/**
-	 * fügt den übergebenen String zur Liste der Empfänger hinzu
-	 * @param recipient
-	 */
-	public void addRecipients(String recipient){
-		//noch testen ob der übergebene String auch eine emailadresse ist..
-		recipientList.add("<"+recipient+">");
-	}
-	/**
-	 * fügt das File einer liste hinzu die der mail angehängt wird
-	 * @param file
-	 */
-	public void addAttachments(File file){
-		if(file != null){
-			attachments.add(file);
-		}
 	}
 
+	// ueberpruefe ob es sich um eine gueltige emailadresse handelt
+	public Boolean checkMail(String toAdress) {
+		// pruefung mittels regulserem ausdruck
+		Pattern regexMail = Pattern.compile("^[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,6}$", Pattern.CASE_INSENSITIVE);
+		Matcher matcher = regexMail.matcher(toAdress);
+		return matcher.find();
+	}
+
+	// Lade den Inhalt der uebergebenen Datei zeilenweise in einen String und
+	// gebe diesen zurueck
+	public String loadBody(String filepath) {
+		BufferedReader reader = null;
+		String fileBody = ""; // filebody wird inizialisiert
+		// try catch fuer den fall, dass die datei nicht gefunden wird
+		try {
+			reader = new BufferedReader(new FileReader(filepath));
+			String line;
+			// solange zeilen in der Datei gefunden werden, fuege diese dem
+			// filebody hinzu
+			while ((line = reader.readLine()) != null) {
+				fileBody = fileBody + "line \n";
+				System.out.println(line);
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return fileBody;
+	}
 }
