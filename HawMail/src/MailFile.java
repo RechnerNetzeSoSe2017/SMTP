@@ -23,6 +23,8 @@ public class MailFile {
 		MailFile mf = new MailFile("",null);
 		
 		mf.addRecipients("patrick.hoeling@haw-hamburg.de");
+		mf.addRecipients("julian.mechow@haw-hamburg.de");
+		mf.addRecipients("christopher.wolfarth@haw-hamburg.de");
 		mf.senden();
 		mf.closeConnection();
 
@@ -163,14 +165,14 @@ public class MailFile {
 			
 			//Die Empfänger werden der Mail hinzugefügt, damit man sieht das an wen die mail alles ging
 			for(int i = 0;i < recipientList.size();i++){
-				out.println("From:"+recipientList.get(i));
+				out.println("To:"+recipientList.get(i));
 			}
 			
-//			out.println("From:<"+absenderMailadresse+">");
-			out.println("To:<"+"alle aus unserer Praktikumsgruppe"+">");
+			out.println("From:<"+absenderMailadresse+">");
+//			out.println("To:<"+"alle aus unserer Praktikumsgruppe"+">");
 			out.println("Subject: TestEmail");
 			out.println("\n");
-			out.println("Hi, ich wollt euch nur mal nerven! pt2, denn chris war ebennicht mit drinne. :D");
+			out.println("Hallo Welt, Diggah!");
 			out.println(".");
 			out.flush();
 			
