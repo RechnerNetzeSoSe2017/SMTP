@@ -1,0 +1,6 @@
+rnsose2017@informatik.haw-hamburg.de
+rnsose2017
+Aufgabe1
+mailgate.informatik.haw-hamburg.de
+465
+Dies ist eine Rechnernetzepraktikumtestmail. :)))))
