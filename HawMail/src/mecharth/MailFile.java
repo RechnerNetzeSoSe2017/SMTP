@@ -41,6 +41,27 @@ public class MailFile {
 	private String recipient;
 
 	private File fileToTransfer = null;
+	
+	public static void main(String[] args) {
+
+		if (args.length >= 2) {
+
+			String toAddress = args[0];
+			String path = args[1];
+			path = path.replaceAll("\\\\", "\\\\\\\\"); // pfad zur
+														// anhaengedatei
+														// formatieren
+			path = path.replaceAll("/", "\\\\\\\\"); // ja backslashs muessen so
+														// oft escaped werden
+
+			File fileToSend = new File(path);
+			MailFile mf = new MailFile(toAddress, fileToSend);
+
+			// mf.checkMail(toAddress);
+			mf.logging(true);
+			mf.sendMail();
+		}
+	}
 
 	public MailFile(String empfaenger, File datei) {
 
@@ -80,26 +101,7 @@ public class MailFile {
 
 	}
 
-	public static void main(String[] args) {
-
-		if (args.length >= 2) {
-
-			String toAddress = args[0];
-			String path = args[1];
-			path = path.replaceAll("\\\\", "\\\\\\\\"); // pfad zur
-														// anhaengedatei
-														// formatieren
-			path = path.replaceAll("/", "\\\\\\\\"); // ja backslashs muessen so
-														// oft escaped werden
-
-			File fileToSend = new File(path);
-			MailFile mf = new MailFile(toAddress, fileToSend);
-
-			// mf.checkMail(toAddress);
-			mf.logging(false);
-			mf.sendMail();
-		}
-	}
+	
 
 	private byte[] fileToByteArray(File file) {
 		byte[] fileAsByteArray = null;
@@ -175,14 +177,15 @@ public class MailFile {
 				send("--Filetransfer");
 				send("Content-Type: text/plain"); // es kommt wieder text
 				send("\n");
-				send(body);// eine Leerzeile trennt den header vom body
+//				send(body);// eine Leerzeile trennt den header vom body
 				send("--Filetransfer");
 				send("Content-Type: application/octet-stream");
-				send("Content-Disposition: attachment; filename=" + filename);
+				send("Content-Disposition: attachment; filename=" + fileToTransfer.getName());
 				send("Content-Transfer-Encoding: base64");
 				send("\n");
 				String dateiAlsBase = dateiToBase(fileToTransfer);
 				send(dateiAlsBase);
+				
 				send("--Filetransfer--");
 				send(".");
 				checkResponse(in.readLine());
@@ -217,6 +220,7 @@ public class MailFile {
 	 * @return das File als base64 codierter String
 	 */
 	private String dateiToBase(File file) {
+		
 
 		Encoder base64Encoder = Base64.getEncoder();
 		// die anzuhaengende file wird in ein bytearray verwandelt und dann in
