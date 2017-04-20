@@ -3,4 +3,4 @@ rnsose2017
 Aufgabe1
 mailgate.informatik.haw-hamburg.de
 465
-Dies ist eine Rechnernetzepraktikumtestmail. :)))))
+irgend ne nachricht

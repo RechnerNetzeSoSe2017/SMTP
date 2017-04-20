@@ -20,6 +20,8 @@ import java.util.List;
 import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import javax.activation.MimetypesFileTypeMap;
 import javax.net.ssl.SSLSocketFactory;
 import static java.nio.charset.StandardCharsets.*;;
 
@@ -33,6 +35,9 @@ public class MailFile {
 	private String pw;
 	private String body;
 	private int port;
+	
+	private int sslsocketnummer=465;
+	private int normalersocket = 52;
 
 	private String filename;
 
@@ -51,8 +56,10 @@ public class MailFile {
 			path = path.replaceAll("\\\\", "\\\\\\\\"); // pfad zur
 														// anhaengedatei
 														// formatieren
-			path = path.replaceAll("/", "\\\\\\\\"); // ja backslashs muessen so
-														// oft escaped werden
+//			path = path.replaceAll("\\", "\\\\");
+			
+//			System.out.println(toAddress);
+//			System.out.println(path);
 
 			File fileToSend = new File(path);
 			MailFile mf = new MailFile(toAddress, fileToSend);
@@ -60,6 +67,8 @@ public class MailFile {
 			// mf.checkMail(toAddress);
 			mf.logging(true);
 			mf.sendMail();
+		}else{
+		System.out.println("brauche 2 parameter: <empfänger email> <dateipfad>");
 		}
 	}
 
@@ -145,10 +154,10 @@ public class MailFile {
 		try {
 
 			// Öffnet entweder einen SSLSocket oder einen normalen socket
-			if (port == 465) {
+			if (port == sslsocketnummer) {
 				sslSocket = SSLSocketFactory.getDefault().createSocket(host, port);
-			} else if (port == 25) {
-				sslSocket = new Socket(host, 25);
+			} else if (port == normalersocket) {
+				sslSocket = new Socket(host, normalersocket);
 			}
 
 			out = new PrintWriter(sslSocket.getOutputStream());
@@ -177,9 +186,9 @@ public class MailFile {
 				send("--Filetransfer");
 				send("Content-Type: text/plain"); // es kommt wieder text
 				send("\n");
-//				send(body);// eine Leerzeile trennt den header vom body
+				send(body);	// eine Leerzeile trennt den header vom body
 				send("--Filetransfer");
-				send("Content-Type: application/octet-stream");
+				send("Content-Type: "+ new MimetypesFileTypeMap().getContentType(fileToTransfer)); //application/octet-stream");
 				send("Content-Disposition: attachment; filename=" + fileToTransfer.getName());
 				send("Content-Transfer-Encoding: base64");
 				send("\n");
@@ -251,7 +260,7 @@ public class MailFile {
 		log("S: " + response); // schreib in den log
 		if (response.startsWith("5")) { // error codes starten mit 5 (smtp reply
 										// codes)
-			throw new IOException();
+			throw new IOException("Antwort des servers beginnt mit 5. Schwerwiegender Fehler\n"+response);
 		} else if (response.charAt(3) == '-') { // wenn das vierte Zeichen ein
 												// '-' ist,
 			checkResponse(in.readLine()); // schau ob noch mehr kommt
